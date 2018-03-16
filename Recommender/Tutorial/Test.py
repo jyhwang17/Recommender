@@ -12,9 +12,8 @@ from six.moves import urllib
 import numpy as np
 import tensorflow as tf
 
-FLAGS = None
+FLAG = None
 
-tf.logging.set_verbosity(tf.logging.INFO)
 def maybe_download(train_data, test_data, predict_data):
     
     if train_data:
@@ -79,38 +78,24 @@ def model_fn(features, labels, mode, params):
 	# Provide an estimator spec for `ModeKeys.EVAL` and `ModeKeys.TRAIN` modes.
 	return tf.estimator.EstimatorSpec(mode=mode,loss=loss,train_op=train_op,eval_metric_ops=eval_metric_ops)
 
-def func(unused_argv):
-	# Load datasets
-
-	abalone_train, abalone_test, abalone_predict = maybe_download(FLAGS.train_data, FLAGS.test_data, FLAGS.predict_data)
-	
-	# Training examples
-
-	# Test examples
-
-	# Set of 7 examples for which to predict abalone ages
-
 
 if __name__ == "__main__":
-	
 	parser = argparse.ArgumentParser()
 	parser.register("type", "bool", lambda v: v.lower() == "true")
 	parser.add_argument("--train_data", type=str, default="", help="Path to the training data.")
 	parser.add_argument("--test_data", type=str, default="", help="Path to the test data.")
 	parser.add_argument("--predict_data",type=str,default="",help="Path to the prediction data.")
 	FLAGS, unparsed = parser.parse_known_args()
-	
 	abalone_train, abalone_test, abalone_predict = maybe_download(FLAGS.train_data, FLAGS.test_data, FLAGS.predict_data)
-	
+	print("path %s %s %s"%(abalone_train,abalone_test,abalone_predict))
 	training_set = tf.contrib.learn.datasets.base.load_csv_without_header(filename=abalone_train, target_dtype=np.int, features_dtype=np.float64)
 	
 	test_set = tf.contrib.learn.datasets.base.load_csv_without_header(filename=abalone_test, target_dtype=np.int, features_dtype=np.float64)
 	
 	prediction_set = tf.contrib.learn.datasets.base.load_csv_without_header(filename=abalone_predict, target_dtype=np.int, features_dtype=np.float64)
 
-	print(training_set)
+	#print(training_set)
 	#tf.app.run(main=func, argv=[sys.argv[0]] + unparsed)
-	print("123")	
 	# Set model params
 	model_params = {"learning_rate": 0.001}
 
@@ -122,9 +107,9 @@ if __name__ == "__main__":
     y=np.array(training_set.target),
     num_epochs=None,
     shuffle=True)
-
+	print(train_input_fn)
 	# Train
-	nn.train(input_fn=train_input_fn, steps=5000)
+	nn.train(input_fn=train_input_fn, steps=500)
 
 	# Score accuracy
 	test_input_fn = tf.estimator.inputs.numpy_input_fn(

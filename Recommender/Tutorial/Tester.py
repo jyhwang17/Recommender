@@ -24,8 +24,6 @@ from sklearn.feature_extraction import DictVectorizer
 
 import Model
 currentPath = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(currentPath+"/MatrixUtils")
-import MatrixUtils as mu
 
 
 FLAG = None

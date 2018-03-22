@@ -51,7 +51,8 @@ class Recommender():
 		self.conf = tf.placeholder(tf.float32,[None,itemCount])
 		self.mask = tf.placeholder(tf.float32,[None,itemCount])
 		self.mask2= tf.placeholder(tf.float32,[None,itemCount])
-		
+		self.labels= tf.placeholder(tf.float32,[None,itemCount])		
+
 		self.user_Indices = tf.placeholder(tf.int32,[None])
 		self.item_Indices = tf.placeholder(tf.int32,[None])
 		self.U_selected = tf.gather(self.U,self.user_Indices)
@@ -59,6 +60,13 @@ class Recommender():
 		
 		self.pred = tf.matmul(self.U_selected, tf.transpose(self.V_selected))
 		self.pred2= self.pred-(self.mask*10000.0)
+		
+		self.topIndices= tf.nn.top_k(self.pred2,k=10,sorted=False).indices
+		self.topKvector= tf.reduce_sum(tf.one_hot(self.topIndices,depth=self.itemCount),axis=1)
+	
+		#Metric
+		self.topHits = tf.reduce_sum(self.topKvector * self.labels)
+		
 		self.line1 = tf.gather(self.pos_ub,self.user_Indices)
 		self.line2 = tf.gather(self.pos_lb,self.user_Indices)
 		self.line3 = tf.gather(self.neg_ub,self.user_Indices)
@@ -74,7 +82,23 @@ class Recommender():
 		config.gpu_options.allow_growth=True
 		self.sess = tf.Session(config=config)
 		self.sess.run(tf.global_variables_initializer())
+		self.sess.run(tf.local_variables_initializer())
+
 	def evalK3(self,topk,ep):
+		precision,recall = 0.0,0.0
+		uCnt = len(self.testMat)
+		allItems = range(self.itemCount)
+		allUsers = range(self.userCount)
+		for userId in self.testMat:
+			result = self.sess.run(self.topHits, feed_dict={self.user_Indices:[userId], self.item_Indices: allItems, 
+															self.labels:np.array([mu.input_vector(self.testMat[userId],0.0,self.itemCount)]),
+															self.mask:np.array([mu.input_vector(self.trainMask[userId],0.0,self.itemCount)])})
+			#	print(result)
+			precision += float(result)/float(topk)
+		
+		print("eval4: %lf"%(precision/float(uCnt)))
+	
+	def evalK2(self,topk,ep):
 
 		precision,recall = 0.0,0.0
 		uCnt = len(self.testMat)
@@ -96,28 +120,7 @@ class Recommender():
 		precision/=uCnt
 		recall/=uCnt
 
-		print("[ver3]Precision@%d: %lf Recall@%d: %lf"%(topk,precision,topk,recall))
-
-	def evalK2(self,topk,ep):
-
-		precision = 0.0
-		recall = 0.0
-		uCnt = len(self.testMat)
-		allItems = range(self.itemCount)
-
-		for userId in self.testMat:
-			result = self.sess.run(self.pred, feed_dict={self.user_Indices:[userId],self.item_Indices: allItems })
-			topkList = mu.topk_selection(self.trainMat, userId,topk, result.flatten().tolist(), allItems)
-			k,hit=0.0,0.0
-			for pref,itemId in topkList:
-				if mu.is_visited(self.testMat,userId,itemId): hit+=1.0
-			precision+=(hit/len(topkList))
-			recall+=hit/float(len(self.testMat[userId]))
-		
-		precision/=uCnt
-		recall/=uCnt
-		
-		print("[ver2]Precision@%d: %lf Recall@%d: %lf"%(topk,precision,topk,recall))
+		print("[argpartition]Precision@%d: %lf Recall@%d: %lf"%(topk,precision,topk,recall))
 
 	def evalK(self,topk,ep):
 
@@ -189,6 +192,7 @@ class Recommender():
 			print("Epoch: [%d/%d] "%(epoch,epochCount))			
 			#self.evalK(10,epoch)
 			start_time2 = time.time()
+			#self.evalK2(10,epoch)
 			self.evalK3(10,epoch)
 			print("Total_Time:%lf Evaluation_Time:%lf "%(time.time()-start_time, time.time()- start_time2 ));
 
@@ -232,7 +236,7 @@ if __name__ == "__main__":
 		userId = int(userId)
 		itemId = int(itemId)
 		rating = float(rating)
-		mu.set(testMat,userId,itemId,1.0)
+		mu.set(testMat,userId,itemId,1)
 
 	rec = Recommender(userCount,itemCount,trainMat,testMat,trainMask,trainMask2)
 	rec.ready()
